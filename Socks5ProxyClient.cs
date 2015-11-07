@@ -27,6 +27,7 @@ using System;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
+using System.Collections.Generic;
 using System.Globalization;
 using System.ComponentModel;
 
@@ -52,7 +53,6 @@ namespace Starksoft.Net.Proxy
         
         private const byte SOCKS5_VERSION_NUMBER = 5;
         private const byte SOCKS5_RESERVED = 0x00;
-        private const byte SOCKS5_AUTH_NUMBER_OF_AUTH_METHODS_SUPPORTED = 2;
         private const byte SOCKS5_AUTH_METHOD_NO_AUTHENTICATION_REQUIRED = 0x00;
         private const byte SOCKS5_AUTH_METHOD_GSSAPI = 0x01;
         private const byte SOCKS5_AUTH_METHOD_USERNAME_PASSWORD = 0x02;
@@ -326,15 +326,23 @@ namespace Starksoft.Net.Proxy
             //      +----+----------+----------+
             //      | 1  |    1     | 1 to 255 |
             //      +----+----------+----------+
-            
-            byte[] authRequest = new byte[4];
-            authRequest[0] = SOCKS5_VERSION_NUMBER;
-            authRequest[1] = SOCKS5_AUTH_NUMBER_OF_AUTH_METHODS_SUPPORTED;
-            authRequest[2] = SOCKS5_AUTH_METHOD_NO_AUTHENTICATION_REQUIRED; 
-            authRequest[3] = SOCKS5_AUTH_METHOD_USERNAME_PASSWORD; 
+
+            var haveUserPass = !String.IsNullOrEmpty(_proxyUserName) &&
+                               !String.IsNullOrEmpty(_proxyPassword);
+
+            var authRequest = new List<byte>();
+            authRequest.Add(SOCKS5_VERSION_NUMBER);
+            if (haveUserPass) {
+                authRequest.Add(2);
+                authRequest.Add(SOCKS5_AUTH_METHOD_NO_AUTHENTICATION_REQUIRED);
+                authRequest.Add(SOCKS5_AUTH_METHOD_USERNAME_PASSWORD);
+            } else {
+                authRequest.Add(1);
+                authRequest.Add(SOCKS5_AUTH_METHOD_NO_AUTHENTICATION_REQUIRED);
+            }
 
             //  send the request to the server specifying authentication types supported by the client.
-            stream.Write(authRequest, 0, authRequest.Length);
+            stream.Write(authRequest.ToArray(), 0, authRequest.Count);
             
             //  SERVER AUTHENTICATION RESPONSE
             //  The server selects from one of the methods given in METHODS, and
